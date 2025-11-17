@@ -1,0 +1,34 @@
+{
+  "name": "elementsnap",
+  "version": "0.0.1",
+  "description": "A framework-agnostic vanilla TypeScript library that captures selected elements with element info and allows adding prompts for AI assistance",
+  "main": "dist/index.js",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "vanilla",
+    "javascript",
+    "vue",
+    "react",
+    "svelte",
+    "selection",
+    "prompt",
+    "cursor",
+    "ai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.0.0"
+  },
+  "dependencies": {}
+}
+
