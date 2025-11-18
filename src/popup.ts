@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const tab = tabs[0];
-    const tabId = tab.id;
+    const tabId = tab.id!; // We already checked it's not undefined above
 
     // Check if we can inject into this page
     const url = tab.url || '';
@@ -32,42 +32,55 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Try to ping the content script to see if it's loaded
-    chrome.tabs.sendMessage(tabId, { type: 'ping' }, (response) => {
-      if (chrome.runtime.lastError) {
-        // Content script might not be loaded yet, that's okay
-        statusEl.textContent = 'Ready - Content script will load automatically';
-        statusEl.className = 'status';
-      } else {
-        statusEl.textContent = 'ElementSnap is active! Press Ctrl+E to start';
-        statusEl.className = 'status active';
-      }
-    });
-
-    // Initialize button click
-    initBtn.addEventListener('click', () => {
-      chrome.tabs.sendMessage(tabId, { type: 'init' }, (response) => {
+    // Automatically inject content script when popup opens (user gesture)
+    // This works with activeTab permission
+    const injectAndInit = () => {
+      // First try to ping existing content script
+      chrome.tabs.sendMessage(tabId, { type: 'ping' }, (response: any) => {
         if (chrome.runtime.lastError) {
-          // Try to inject the script if it's not loaded
+          // Content script not loaded, inject it
           chrome.scripting.executeScript({
             target: { tabId: tabId },
             files: ['content.js']
           }).then(() => {
-            statusEl.textContent = 'ElementSnap initialized! Press Ctrl+E to start';
-            statusEl.className = 'status active';
+            // Wait a bit for script to load, then initialize
+            setTimeout(() => {
+              chrome.tabs.sendMessage(tabId, { type: 'init' }, (response: any) => {
+                if (chrome.runtime.lastError) {
+                  statusEl.textContent = 'ElementSnap ready! Press Ctrl+E to start';
+                  statusEl.className = 'status active';
+                } else if (response?.success) {
+                  statusEl.textContent = 'ElementSnap initialized! Press Ctrl+E to start';
+                  statusEl.className = 'status active';
+                }
+              });
+            }, 100);
           }).catch((err) => {
             statusEl.textContent = 'Error: Could not inject script. Try refreshing the page.';
             statusEl.className = 'status';
             console.error('Failed to inject script:', err);
           });
-          return;
-        }
-
-        if (response?.success) {
-          statusEl.textContent = 'ElementSnap initialized! Press Ctrl+E to start';
-          statusEl.className = 'status active';
+        } else {
+          // Content script already loaded, just initialize
+          chrome.tabs.sendMessage(tabId, { type: 'init' }, (response: any) => {
+            if (chrome.runtime.lastError) {
+              statusEl.textContent = 'ElementSnap ready! Press Ctrl+E to start';
+              statusEl.className = 'status active';
+            } else if (response?.success) {
+              statusEl.textContent = 'ElementSnap initialized! Press Ctrl+E to start';
+              statusEl.className = 'status active';
+            }
+          });
         }
       });
+    };
+
+    // Inject and initialize automatically
+    injectAndInit();
+
+    // Initialize button click (for manual re-initialization)
+    initBtn.addEventListener('click', () => {
+      injectAndInit();
     });
 
     // Listen for selection changes

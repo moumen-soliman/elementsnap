@@ -6,4 +6,13 @@ tsconfig.json
 .env
 .env.local
 *.tsbuildinfo
+# Extension files
+manifest.json
+popup.html
+popup.js
+content.js
+icons/
+extension.zip
+*.md
+!README.md
 

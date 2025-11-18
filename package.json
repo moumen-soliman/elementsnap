@@ -14,7 +14,8 @@
     "build:extension:content": "tsup src/content.ts --format iife --global-name ElementSnapContent --out-dir . --no-splitting && mv content.global.js content.js",
     "build:extension:popup": "tsup src/popup.ts --format iife --out-dir . --no-splitting && mv popup.global.js popup.js",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "publish:package": "npm run build && npm publish"
   },
   "keywords": [
     "vanilla",

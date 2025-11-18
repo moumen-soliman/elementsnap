@@ -179,6 +179,7 @@ class ElementSnap {
       
       this.setHoveredElement(null);
       this.updateSelectedElementsStyles();
+      this.renderBanner(); // Update banner with new count
       
       if (this.autoOpenDialog && newSelection.length > 0 && !this.isVisible) {
         this.position = this.getRandomPosition();
