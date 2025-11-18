@@ -1,6 +1,10 @@
 # ElementSnap
 
-A lightweight, framework-agnostic JavaScript library for selecting DOM elements and capturing their details. Designed for developers who need to extract element information for debugging, documentation, or AI-assisted development.
+A lightweight JavaScript library for selecting DOM elements and capturing their details. Designed for developers who need to extract element information for debugging, documentation, or AI-assisted development.
+
+## Demo
+
+Watch a demo video: [https://iimydr2b8o.ufs.sh/f/Zqn6AViLMoTtnt9FhoUytujFekWacTxmRSXfOM2NDw63Jgp4](https://iimydr2b8o.ufs.sh/f/Zqn6AViLMoTtnt9FhoUytujFekWacTxmRSXfOM2NDw63Jgp4)
 
 ## Installation
 

@@ -691,4 +691,5 @@ class ElementSnap {
 }
 
 // Export for different module systems
+export { ElementSnap };
 export default ElementSnap;
