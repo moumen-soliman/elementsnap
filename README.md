@@ -12,19 +12,6 @@ Watch a demo video: [https://iimydr2b8o.ufs.sh/f/Zqn6AViLMoTtnt9FhoUytujFekWacTx
 npm install elementsnap
 ```
 
-## Quick Start
-
-```javascript
-import ElementSnap from 'elementsnap';
-
-const snap = new ElementSnap({
-  onCopy: (data) => console.log('Copied:', data)
-});
-
-// Clean up when done
-snap.destroy();
-```
-
 ## Framework Integration
 
 ### React
