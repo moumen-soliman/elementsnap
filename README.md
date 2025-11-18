@@ -8,13 +8,10 @@ ElementSnap is also available as a Chrome extension!
 
 [ElementSnap](https://chromewebstore.google.com/detail/elementsnap/fdobojobfbjpcbjhfnkadbihhafjhdhd)
 
-See [EXTENSION.md](./EXTENSION.md) for installation and usage instructions.
-
 ### Quick Start
 
-1. Build the extension: `npm run build:extension`
-2. Load it in Chrome via `chrome://extensions/` (Developer mode)
-3. Press `Ctrl+E` (or `Cmd+E` on Mac) on any webpage to start selecting elements
+1. Install Extension, Open
+2. Press `Ctrl+E` (or `Cmd+E` on Mac) on any webpage to start selecting elements
 
 ## Demo
 
