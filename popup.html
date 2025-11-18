@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ElementSnap</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 320px;
+      padding: 20px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #ffffff;
+    }
+
+    .header {
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 4px;
+      letter-spacing: -0.01em;
+    }
+
+    .header p {
+      font-size: 13px;
+      color: #666666;
+    }
+
+    .status {
+      padding: 12px;
+      background: #fafafa;
+      border: 1px solid rgba(0,0,0,0.06);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 13px;
+      color: #000000;
+    }
+
+    .status.active {
+      background: #e6f7ff;
+      border-color: #0066ff;
+    }
+
+    .shortcuts {
+      margin-bottom: 16px;
+    }
+
+    .shortcuts h3 {
+      font-size: 12px;
+      font-weight: 600;
+      color: #000000;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .shortcut-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      font-size: 13px;
+      color: #666666;
+    }
+
+    .shortcut-key {
+      background: #fafafa;
+      border: 1px solid rgba(0,0,0,0.1);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 11px;
+      color: #000000;
+    }
+
+    .button {
+      width: 100%;
+      padding: 12px;
+      background: #000000;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+      letter-spacing: -0.01em;
+    }
+
+    .button:hover {
+      opacity: 0.8;
+    }
+
+    .button:active {
+      opacity: 0.6;
+    }
+
+    .footer {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(0,0,0,0.06);
+      font-size: 11px;
+      color: #999999;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>ElementSnap</h1>
+    <p>Select and capture DOM elements</p>
+  </div>
+
+  <div class="status" id="status">
+    Ready to use
+  </div>
+
+  <div class="shortcuts">
+    <h3>Keyboard Shortcuts</h3>
+    <div class="shortcut-item">
+      <span>Start selection</span>
+      <span class="shortcut-key">Ctrl+E</span>
+    </div>
+    <div class="shortcut-item">
+      <span>Finish selection</span>
+      <span class="shortcut-key">Enter</span>
+    </div>
+    <div class="shortcut-item">
+      <span>Cancel</span>
+      <span class="shortcut-key">Esc</span>
+    </div>
+  </div>
+
+  <button class="button" id="initBtn">Initialize on Page</button>
+
+  <div class="footer">
+    Version 0.0.2
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+

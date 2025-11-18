@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ElementSnap Icon Generator</title>
+  <style>
+    body {
+      font-family: system-ui;
+      padding: 40px;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    canvas {
+      border: 1px solid #ddd;
+      margin: 20px 0;
+    }
+    button {
+      background: #000;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    button:hover {
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>ElementSnap Icon Generator</h1>
+    <p>Click the button below to generate icons. Then right-click each canvas and "Save image as..." to save as PNG files in the icons/ directory.</p>
+    
+    <h3>16x16</h3>
+    <canvas id="icon16" width="16" height="16"></canvas>
+    
+    <h3>32x32</h3>
+    <canvas id="icon32" width="32" height="32"></canvas>
+    
+    <h3>48x48</h3>
+    <canvas id="icon48" width="48" height="48"></canvas>
+    
+    <h3>128x128</h3>
+    <canvas id="icon128" width="128" height="128"></canvas>
+    
+    <button onclick="generateIcons()">Generate Icons</button>
+  </div>
+
+  <script>
+    function generateIcons() {
+      const sizes = [16, 32, 48, 128];
+      
+      sizes.forEach(size => {
+        const canvas = document.getElementById(`icon${size}`);
+        const ctx = canvas.getContext('2d');
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, size, size);
+        
+        // Draw background
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, size, size);
+        
+        // Draw a simple "E" or selection box icon
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${size * 0.6}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('E', size / 2, size / 2);
+      });
+    }
+    
+    // Generate on load
+    window.onload = generateIcons;
+  </script>
+</body>
+</html>
+

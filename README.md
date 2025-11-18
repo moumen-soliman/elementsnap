@@ -2,6 +2,20 @@
 
 A lightweight JavaScript library for selecting DOM elements and capturing their details. Designed for developers who need to extract element information for debugging, documentation, or AI-assisted development.
 
+## Chrome Extension
+
+ElementSnap is also available as a Chrome extension! 
+
+![ElementSnap Icon](./icons/icon16.png)
+
+See [EXTENSION.md](./EXTENSION.md) for installation and usage instructions.
+
+### Quick Start
+
+1. Build the extension: `npm run build:extension`
+2. Load it in Chrome via `chrome://extensions/` (Developer mode)
+3. Press `Ctrl+E` (or `Cmd+E` on Mac) on any webpage to start selecting elements
+
 ## Demo
 
 Watch a demo video: [https://iimydr2b8o.ufs.sh/f/Zqn6AViLMoTtnt9FhoUytujFekWacTxmRSXfOM2NDw63Jgp4](https://iimydr2b8o.ufs.sh/f/Zqn6AViLMoTtnt9FhoUytujFekWacTxmRSXfOM2NDw63Jgp4)
