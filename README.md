@@ -6,7 +6,7 @@ A lightweight JavaScript library for selecting DOM elements and capturing their 
 
 ElementSnap is also available as a Chrome extension! 
 
-![ElementSnap Icon](./icons/icon16.png)
+![ElementSnap](https://chromewebstore.google.com/detail/elementsnap/fdobojobfbjpcbjhfnkadbihhafjhdhd)
 
 See [EXTENSION.md](./EXTENSION.md) for installation and usage instructions.
 
