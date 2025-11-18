@@ -1,6 +1,6 @@
 # ElementSnap
 
-A lightweight JavaScript library for selecting DOM elements and capturing their details. Designed for developers who need to extract element information for debugging, documentation, or AI-assisted development.
+Select DOM elements and capture their details for debugging, documentation, or AI-assisted development. Available as an extension and a package
 
 ## Chrome Extension
 
@@ -17,7 +17,7 @@ ElementSnap is also available as a Chrome extension!
 
 Watch a demo video: [https://iimydr2b8o.ufs.sh/f/Zqn6AViLMoTtnt9FhoUytujFekWacTxmRSXfOM2NDw63Jgp4](https://iimydr2b8o.ufs.sh/f/Zqn6AViLMoTtnt9FhoUytujFekWacTxmRSXfOM2NDw63Jgp4)
 
-## Installation
+## Install package
 
 ```bash
 npm install elementsnap
