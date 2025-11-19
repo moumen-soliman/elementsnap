@@ -1,7 +1,7 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 4,
   "name": "ElementSnap",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "description": "Select DOM elements and capture their details for debugging, documentation, or AI-assisted development",
   "permissions": [
     "activeTab",

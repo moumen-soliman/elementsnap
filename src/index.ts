@@ -7,6 +7,8 @@ export interface ElementInfo {
   html: string;
   text: string;
   element: HTMLElement;
+  url: string;
+  selector: string | null;
 }
 
 export interface SelectionPromptOptions {
@@ -125,8 +127,62 @@ class ElementSnap {
     return false;
   }
 
+  getUniqueSelector(el: Element | null): string | null {
+    try {
+      if (!(el instanceof Element)) return null;
+
+      const path: string[] = [];
+      let currentEl: Element | null = el;
+
+      while (currentEl && currentEl.nodeType === Node.ELEMENT_NODE) {
+        const currentTagName = currentEl.nodeName;
+        if (!currentTagName) break;
+        
+        let selector = currentTagName.toLowerCase();
+
+        // Add nth-child if necessary
+        if (currentEl.parentNode) {
+          try {
+            const siblings = Array.from(currentEl.parentNode.children);
+            const sameTagSiblings = siblings.filter(s => s.nodeName === currentTagName);
+
+            if (sameTagSiblings.length > 1) {
+              const index = sameTagSiblings.indexOf(currentEl) + 1;
+              if (index > 0) {
+                selector += `:nth-of-type(${index})`;
+              }
+            }
+          } catch (e) {
+            // If we can't get siblings, just use the tag name
+          }
+        }
+
+        path.unshift(selector);
+        currentEl = currentEl.parentElement;
+        
+        // Safety check to prevent infinite loops
+        if (path.length > 100) break;
+      }
+
+      return path.length > 0 ? path.join(" > ") : null;
+    } catch (e) {
+      console.error('Error generating selector:', e);
+      return null;
+    }
+  }
+
   getElementInfo(element: HTMLElement | null): ElementInfo | null {
     if (!element) return null;
+
+    let url = '';
+    try {
+      if (typeof window !== 'undefined' && window.location) {
+        url = window.location.href;
+      }
+    } catch (e) {
+      // If we can't get the URL, just use empty string
+      console.warn('Could not get page URL:', e);
+    }
 
     return {
       tag: element.tagName.toLowerCase(),
@@ -135,6 +191,8 @@ class ElementSnap {
       html: element.outerHTML.substring(0, 500),
       text: element.textContent?.trim().substring(0, 200) || '',
       element: element,
+      url: url,
+      selector: this.getUniqueSelector(element),
     };
   }
 
@@ -301,12 +359,16 @@ class ElementSnap {
         : '';
       const idStr = elementInfo.id ? `id: ${elementInfo.id}` : '';
       const tagStr = `tag: ${elementInfo.tag}`;
+      const urlStr = `url: ${elementInfo.url}`;
+      const selectorStr = elementInfo.selector ? `selector: ${elementInfo.selector}` : '';
 
       const parts = [
         `=== Element ${idx + 1} ===`,
+        urlStr,
         tagStr,
         idStr,
         classesStr,
+        selectorStr,
         `\nHTML:\n${elementInfo.html}`,
       ].filter(Boolean);
 
@@ -493,6 +555,10 @@ class ElementSnap {
             </div>
             
             <div style="font-size: 12px; color: #000000;">
+              <div style="margin-bottom: 6px;">
+                <span style="color: #666666; font-size: 11px; font-weight: 500; display: block; margin-bottom: 4px;">URL:</span>
+                <code style="background-color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; border: 1px solid rgba(0,0,0,0.06); font-weight: 500; word-break: break-all; display: block;">${this.escapeHtml(elementInfo.url)}</code>
+              </div>
               <div style="margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
                 <span style="color: #666666; font-size: 11px; font-weight: 500;">Tag:</span>
                 <code style="background-color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; border: 1px solid rgba(0,0,0,0.06); font-weight: 500;">${elementInfo.tag}</code>
@@ -513,6 +579,12 @@ class ElementSnap {
                       </code>
                     `).join('')}
                   </div>
+                </div>
+              ` : ''}
+              ${elementInfo.selector ? `
+                <div style="margin-bottom: 6px;">
+                  <span style="color: #666666; font-size: 11px; font-weight: 500; display: block; margin-bottom: 4px;">Selector:</span>
+                  <code style="background-color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; border: 1px solid rgba(0,0,0,0.06); font-weight: 500; word-break: break-all; display: block;">${this.escapeHtml(elementInfo.selector)}</code>
                 </div>
               ` : ''}
               <div style="margin-top: 10px; padding: 10px; background-color: #ffffff; border-radius: 6px; border: 1px solid rgba(0,0,0,0.06);">
