@@ -103,6 +103,28 @@ class ElementSnap {
     });
   }
 
+  isInteractiveElement(element: HTMLElement): boolean {
+    const tagName = element.tagName.toLowerCase();
+    
+    // Check if element is a button, input, select, textarea
+    if (['button', 'input', 'select', 'textarea'].includes(tagName)) {
+      return true;
+    }
+    
+    // Check if element has role="button"
+    const role = element.getAttribute('role');
+    if (role === 'button') {
+      return true;
+    }
+    
+    // Check if element has onclick handler or is contenteditable
+    if (element.hasAttribute('onclick') || element.contentEditable === 'true') {
+      return true;
+    }
+    
+    return false;
+  }
+
   getElementInfo(element: HTMLElement | null): ElementInfo | null {
     if (!element) return null;
 
@@ -150,10 +172,17 @@ class ElementSnap {
     if (this.boxElement && this.boxElement.contains(e.target as Node)) return;
     if (this.bannerElement && this.bannerElement.contains(e.target as Node)) return;
 
+    // Get the actual HTML element (e.target might be a text node)
+    let element = e.target as HTMLElement;
+    if (element && element.nodeType !== Node.ELEMENT_NODE) {
+      element = element.parentElement as HTMLElement;
+    }
+    if (!element || !(element instanceof HTMLElement)) return;
+    
+    // In selection mode, prevent default behavior for ALL elements
+    // This includes links, which should be selectable, not clickable
     e.preventDefault();
     e.stopPropagation();
-
-    const element = e.target as HTMLElement;
     
     if (element.tagName === 'BODY' || element.tagName === 'HTML') return;
     if (this.shouldExcludeElement(element)) return;

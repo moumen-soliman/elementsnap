@@ -1,6 +1,6 @@
 {
   "name": "elementsnap",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "A framework-agnostic vanilla TypeScript library that captures selected elements with element info and allows adding prompts for AI assistance",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -13,6 +13,7 @@
     "build:extension": "npm run build:extension:content && npm run build:extension:popup",
     "build:extension:content": "tsup src/content.ts --format iife --global-name ElementSnapContent --out-dir . --no-splitting && mv content.global.js content.js",
     "build:extension:popup": "tsup src/popup.ts --format iife --out-dir . --no-splitting && mv popup.global.js popup.js",
+    "package:extension": "npm run build:extension && zip -r extension.zip manifest.json popup.html popup.js content.js icons/ -x '*.DS_Store'",
     "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
     "prepublishOnly": "npm run build",
     "publish:package": "npm run build && npm publish"
