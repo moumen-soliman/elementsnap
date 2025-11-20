@@ -1,6 +1,6 @@
 {
   "name": "elementsnap",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "description": "A framework-agnostic vanilla TypeScript library that captures selected elements with element info and allows adding prompts for AI assistance",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",

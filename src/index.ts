@@ -1,30 +1,8 @@
-// ElementSnap.ts - TypeScript version
-
-export interface ElementInfo {
-  tag: string;
-  id: string;
-  classes: string[];
-  html: string;
-  text: string;
-  element: HTMLElement;
-  url: string;
-  selector: string | null;
-}
-
-export interface SelectionPromptOptions {
-  enabled?: boolean;
-  onCopy?: (data: string) => void;
-  onSelectionChange?: (elements: ElementInfo[]) => void;
-  className?: string;
-  hotkey?: string;
-  hotkeyModifier?: 'ctrl' | 'alt' | 'shift';
-  maxElements?: number;
-  showBanner?: boolean;
-  autoOpenDialog?: boolean;
-  hoverColor?: string;
-  selectedColor?: string;
-  excludeSelectors?: string[];
-}
+import type { ElementInfo, SelectionPromptOptions } from './types';
+import { getRandomPosition } from './utils';
+import { getElementInfo, shouldExcludeElement } from './elementUtils';
+import { formatElementsForCopy } from './copyUtils';
+import { generateDialogHTML, generateBannerHTML } from './templates';
 
 class ElementSnap {
   // Options with defaults
@@ -50,6 +28,7 @@ class ElementSnap {
   isSelectionMode: boolean;
   isDragging: boolean;
   dragOffset: { x: number; y: number };
+  isPaused: boolean;
 
   // DOM references
   boxElement: HTMLDivElement | null;
@@ -79,6 +58,7 @@ class ElementSnap {
     this.isSelectionMode = false;
     this.isDragging = false;
     this.dragOffset = { x: 0, y: 0 };
+    this.isPaused = false; // Initialize isPaused here
 
     // DOM references
     this.boxElement = null;
@@ -92,141 +72,35 @@ class ElementSnap {
 
   init(): void {
     document.addEventListener('keyup', this.handleKeyUp);
-  }
 
-  shouldExcludeElement(element: HTMLElement): boolean {
-    if (this.excludeSelectors.length === 0) return false;
-    return this.excludeSelectors.some(selector => {
-      try {
-        return element.matches(selector);
-      } catch {
-        return false;
+    // Load saved selection
+    chrome.storage.local.get(['selectedElements'], (result) => {
+      if (result.selectedElements && Array.isArray(result.selectedElements)) {
+        this.selectedElements = result.selectedElements;
+        if (this.selectedElements.length > 0) {
+          // If we have saved elements, show the banner/dialog
+          this.isVisible = false; // Start hidden, user can open with hotkey or if they select more
+          this.renderBanner();
+        }
       }
     });
   }
 
-  isInteractiveElement(element: HTMLElement): boolean {
-    const tagName = element.tagName.toLowerCase();
-    
-    // Check if element is a button, input, select, textarea
-    if (['button', 'input', 'select', 'textarea'].includes(tagName)) {
-      return true;
-    }
-    
-    // Check if element has role="button"
-    const role = element.getAttribute('role');
-    if (role === 'button') {
-      return true;
-    }
-    
-    // Check if element has onclick handler or is contenteditable
-    if (element.hasAttribute('onclick') || element.contentEditable === 'true') {
-      return true;
-    }
-    
-    return false;
-  }
-
-  getUniqueSelector(el: Element | null): string | null {
-    try {
-      if (!(el instanceof Element)) return null;
-
-      const path: string[] = [];
-      let currentEl: Element | null = el;
-
-      while (currentEl && currentEl.nodeType === Node.ELEMENT_NODE) {
-        const currentTagName = currentEl.nodeName;
-        if (!currentTagName) break;
-        
-        let selector = currentTagName.toLowerCase();
-
-        // Add nth-child if necessary
-        if (currentEl.parentNode) {
-          try {
-            const siblings = Array.from(currentEl.parentNode.children);
-            const sameTagSiblings = siblings.filter(s => s.nodeName === currentTagName);
-
-            if (sameTagSiblings.length > 1) {
-              const index = sameTagSiblings.indexOf(currentEl) + 1;
-              if (index > 0) {
-                selector += `:nth-of-type(${index})`;
-              }
-            }
-          } catch (e) {
-            // If we can't get siblings, just use the tag name
-          }
-        }
-
-        path.unshift(selector);
-        currentEl = currentEl.parentElement;
-        
-        // Safety check to prevent infinite loops
-        if (path.length > 100) break;
-      }
-
-      return path.length > 0 ? path.join(" > ") : null;
-    } catch (e) {
-      console.error('Error generating selector:', e);
-      return null;
-    }
-  }
-
-  getElementInfo(element: HTMLElement | null): ElementInfo | null {
-    if (!element) return null;
-
-    let url = '';
-    try {
-      if (typeof window !== 'undefined' && window.location) {
-        url = window.location.href;
-      }
-    } catch (e) {
-      // If we can't get the URL, just use empty string
-      console.warn('Could not get page URL:', e);
-    }
-
-    return {
-      tag: element.tagName.toLowerCase(),
-      id: element.id || '',
-      classes: Array.from(element.classList),
-      html: element.outerHTML.substring(0, 500),
-      text: element.textContent?.trim().substring(0, 200) || '',
-      element: element,
-      url: url,
-      selector: this.getUniqueSelector(element),
-    };
-  }
-
-  getRandomPosition(): { x: number; y: number } {
-    if (typeof window === 'undefined') return { x: 100, y: 100 };
-
-    const padding = 20;
-    const boxWidth = 480;
-    const boxHeight = 500;
-
-    const maxX = window.innerWidth - boxWidth - padding;
-    const maxY = window.innerHeight - boxHeight - padding;
-
-    return {
-      x: Math.max(padding, Math.floor(Math.random() * maxX)),
-      y: Math.max(padding, Math.floor(Math.random() * maxY)),
-    };
-  }
-
   handleMouseMove = (e: MouseEvent): void => {
-    if (!this.isSelectionMode) return;
+    if (!this.isSelectionMode || this.isPaused) return;
     if (this.boxElement && this.boxElement.contains(e.target as Node)) return;
     if (this.bannerElement && this.bannerElement.contains(e.target as Node)) return;
 
     const element = e.target as HTMLElement;
-    
+
     if (element.tagName === 'BODY' || element.tagName === 'HTML') return;
-    if (this.shouldExcludeElement(element)) return;
-    
+    if (shouldExcludeElement(element, this.excludeSelectors)) return;
+
     this.setHoveredElement(element);
   }
 
   handleClick = (e: MouseEvent): void => {
-    if (!this.isSelectionMode) return;
+    if (!this.isSelectionMode || this.isPaused) return;
     if (this.boxElement && this.boxElement.contains(e.target as Node)) return;
     if (this.bannerElement && this.bannerElement.contains(e.target as Node)) return;
 
@@ -236,19 +110,19 @@ class ElementSnap {
       element = element.parentElement as HTMLElement;
     }
     if (!element || !(element instanceof HTMLElement)) return;
-    
+
     // In selection mode, prevent default behavior for ALL elements
     // This includes links, which should be selectable, not clickable
     e.preventDefault();
     e.stopPropagation();
-    
-    if (element.tagName === 'BODY' || element.tagName === 'HTML') return;
-    if (this.shouldExcludeElement(element)) return;
 
-    const info = this.getElementInfo(element);
+    if (element.tagName === 'BODY' || element.tagName === 'HTML') return;
+    if (shouldExcludeElement(element, this.excludeSelectors)) return;
+
+    const info = getElementInfo(element);
     if (info) {
       const isAlreadySelected = this.selectedElements.some(sel => sel.element === element);
-      
+
       let newSelection: ElementInfo[];
       if (isAlreadySelected) {
         newSelection = this.selectedElements.filter(sel => sel.element !== element);
@@ -258,18 +132,25 @@ class ElementSnap {
         }
         newSelection = [...this.selectedElements, info];
       }
-      
+
       this.selectedElements = newSelection;
       if (this.onSelectionChange) {
         this.onSelectionChange(newSelection);
       }
-      
+
+      // Save to storage (remove element reference as it's not serializable)
+      const serializableSelection = newSelection.map(item => {
+        const { element, ...rest } = item;
+        return rest;
+      });
+      chrome.storage.local.set({ selectedElements: serializableSelection });
+
       this.setHoveredElement(null);
       this.updateSelectedElementsStyles();
       this.renderBanner(); // Update banner with new count
-      
+
       if (this.autoOpenDialog && newSelection.length > 0 && !this.isVisible) {
-        this.position = this.getRandomPosition();
+        this.position = getRandomPosition();
         this.showDialog();
       }
     }
@@ -282,12 +163,22 @@ class ElementSnap {
       this.handleClose();
     } else if (
       ((this.hotkeyModifier === 'ctrl' && (e.ctrlKey || e.metaKey)) ||
-       (this.hotkeyModifier === 'alt' && e.altKey) ||
-       (this.hotkeyModifier === 'shift' && e.shiftKey)) &&
+        (this.hotkeyModifier === 'alt' && e.altKey) ||
+        (this.hotkeyModifier === 'shift' && e.shiftKey)) &&
       e.key.toLowerCase() === this.hotkey.toLowerCase()
     ) {
       e.preventDefault();
-      this.startSelectionMode();
+      // If we already have selected elements or the dialog is open, resume selection
+      // instead of starting over (which clears selection)
+      if (this.selectedElements.length > 0 || this.isVisible) {
+        this.resumeSelectionMode();
+      } else {
+        this.startSelectionMode();
+      }
+    } else if (e.key === ' ' && this.isSelectionMode) {
+      // Spacebar to toggle pause
+      e.preventDefault();
+      this.togglePause();
     } else if (e.key === 'Enter' && this.isSelectionMode && !this.autoOpenDialog) {
       this.finishSelection();
     }
@@ -329,6 +220,7 @@ class ElementSnap {
 
     // Apply styles to current selection
     this.selectedElements.forEach(({ element }) => {
+      if (!element) return; // Skip if element is not on this page (loaded from storage)
       (element as any)._selectedOriginalOutline = element.style.outline;
       (element as any)._selectedOriginalOutlineOffset = element.style.outlineOffset;
       (element as any)._selectedOriginalBoxShadow = element.style.boxShadow;
@@ -346,6 +238,24 @@ class ElementSnap {
     if (this.onSelectionChange) {
       this.onSelectionChange(newSelection);
     }
+
+    // Update storage
+    const serializableSelection = newSelection.map(item => {
+      const { element, ...rest } = item;
+      return rest;
+    });
+    chrome.storage.local.set({ selectedElements: serializableSelection });
+
+    this.updateSelectedElementsStyles();
+    this.render();
+  }
+
+  clearSelection(): void {
+    this.selectedElements = [];
+    if (this.onSelectionChange) {
+      this.onSelectionChange([]);
+    }
+    chrome.storage.local.remove('selectedElements');
     this.updateSelectedElementsStyles();
     this.render();
   }
@@ -353,32 +263,8 @@ class ElementSnap {
   handleCopy(): void {
     if (this.selectedElements.length === 0) return;
 
-    const elementsData = this.selectedElements.map((elementInfo, idx) => {
-      const classesStr = elementInfo.classes.length > 0
-        ? `classes: ${elementInfo.classes.join(' ')}`
-        : '';
-      const idStr = elementInfo.id ? `id: ${elementInfo.id}` : '';
-      const tagStr = `tag: ${elementInfo.tag}`;
-      const urlStr = `url: ${elementInfo.url}`;
-      const selectorStr = elementInfo.selector ? `selector: ${elementInfo.selector}` : '';
+    const output = formatElementsForCopy(this.selectedElements, this.prompt);
 
-      const parts = [
-        `=== Element ${idx + 1} ===`,
-        urlStr,
-        tagStr,
-        idStr,
-        classesStr,
-        selectorStr,
-        `\nHTML:\n${elementInfo.html}`,
-      ].filter(Boolean);
-
-      return parts.join('\n');
-    }).join('\n\n');
-
-    const output = this.prompt 
-      ? `${elementsData}\n\n=== Prompt ===\n${this.prompt}`
-      : elementsData;
-    
     navigator.clipboard.writeText(output).then(() => {
       if (this.onCopy) {
         this.onCopy(output);
@@ -399,12 +285,13 @@ class ElementSnap {
   handleClose(): void {
     this.isVisible = false;
     this.prompt = '';
-    this.selectedElements = [];
+    this.selectedElements = []; // Clear selected elements on close
     this.setHoveredElement(null);
     this.isSelectionMode = false;
     if (this.onSelectionChange) {
       this.onSelectionChange([]);
     }
+    chrome.storage.local.remove('selectedElements'); // Clear storage on close
     this.updateSelectedElementsStyles();
     this.cleanup();
   }
@@ -419,11 +306,30 @@ class ElementSnap {
     if (this.onSelectionChange) {
       this.onSelectionChange([]);
     }
+    chrome.storage.local.remove('selectedElements');
     this.updateSelectedElementsStyles();
-    
+
     document.addEventListener('mousemove', this.handleMouseMove);
     document.addEventListener('click', this.handleClick, true);
-    
+
+    this.renderBanner();
+  }
+
+  resumeSelectionMode(): void {
+    // Close the dialog but keep the selected elements
+    this.isVisible = false;
+    this.cleanup();
+
+    // Re-enter selection mode
+    this.isSelectionMode = true;
+
+    // Re-apply styles to selected elements (they might have been cleared)
+    this.updateSelectedElementsStyles();
+
+    // Ensure event listeners are attached
+    document.addEventListener('mousemove', this.handleMouseMove);
+    document.addEventListener('click', this.handleClick, true);
+
     this.renderBanner();
   }
 
@@ -431,13 +337,24 @@ class ElementSnap {
     this.isSelectionMode = false;
     document.removeEventListener('mousemove', this.handleMouseMove);
     document.removeEventListener('click', this.handleClick, true);
-    
+
     if (this.selectedElements.length > 0 && !this.isVisible) {
-      this.position = this.getRandomPosition();
+      this.position = getRandomPosition();
       this.showDialog();
     }
-    
+
     this.removeBanner();
+  }
+
+  togglePause(): void {
+    this.isPaused = !this.isPaused;
+    if (this.isPaused) {
+      this.setHoveredElement(null);
+      document.body.style.cursor = 'default';
+    } else {
+      document.body.style.cursor = 'crosshair';
+    }
+    this.renderBanner();
   }
 
   showDialog(): void {
@@ -476,16 +393,34 @@ class ElementSnap {
       pointerEvents: 'none',
       textAlign: 'center',
       letterSpacing: '-0.01em',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
     });
 
-    this.bannerElement.innerHTML = `
-      <span style="opacity: 0.7">Click to select</span>
-      •
-      <span style="color: ${this.selectedColor}">${this.selectedElements.length}${this.maxElements ? `/${this.maxElements}` : ''}</span>
-      ${!this.autoOpenDialog ? '<span style="opacity: 0.7"> • Enter to finish</span>' : ''}
-      •
-      <span style="opacity: 0.7">Esc to cancel</span>
-    `;
+    this.bannerElement.innerHTML = generateBannerHTML({
+      selectedCount: this.selectedElements.length,
+      maxElements: this.maxElements,
+      selectedColor: this.selectedColor,
+      autoOpenDialog: this.autoOpenDialog,
+      isPaused: this.isPaused,
+    });
+
+    // Attach banner listeners
+    const toggleBtn = this.bannerElement.querySelector('[data-toggle-pause]');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.togglePause();
+      });
+      toggleBtn.addEventListener('mouseenter', (e) => {
+        (e.target as HTMLElement).style.opacity = '1';
+      });
+      toggleBtn.addEventListener('mouseleave', (e) => {
+        (e.target as HTMLElement).style.opacity = '0.7';
+      });
+    }
   }
 
   removeBanner(): void {
@@ -526,94 +461,14 @@ class ElementSnap {
       flexDirection: 'column',
     });
 
-    this.boxElement.innerHTML = `
-      <div data-drag-handle style="padding: 16px 20px; border-bottom: 1px solid rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; cursor: move; user-select: none;">
-        <div>
-          <h3 style="margin: 0; font-size: 14px; font-weight: 600; color: #000000; letter-spacing: -0.01em;">
-            Selected Elements
-          </h3>
-          <p style="margin: 2px 0 0 0; font-size: 12px; color: #666666; font-weight: 400;">
-            ${this.selectedElements.length}${this.maxElements ? `/${this.maxElements}` : ''} element${this.selectedElements.length !== 1 ? 's' : ''}
-          </p>
-        </div>
-        <div style="display: flex; gap: 8px; align-items: center;">
-          ${this.isSelectionMode ? '<button data-finish-btn style="background: #000000; border: none; font-size: 12px; cursor: pointer; color: white; padding: 6px 12px; border-radius: 6px; font-weight: 500; letter-spacing: -0.01em; transition: opacity 0.15s ease;">Done</button>' : ''}
-          <button data-close-btn style="background: transparent; border: none; font-size: 18px; cursor: pointer; color: #666666; padding: 4px; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: all 0.15s ease;">×</button>
-        </div>
-      </div>
-
-      <div data-elements-list style="padding: 12px; max-height: 320px; overflow: auto; flex-grow: 1;">
-        ${this.selectedElements.map((elementInfo, idx) => `
-          <div style="margin-bottom: 8px; padding: 12px; background-color: #fafafa; border: 1px solid rgba(0,0,0,0.06); border-radius: 8px; transition: all 0.15s ease;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <div style="font-size: 11px; font-weight: 600; color: #666666; text-transform: uppercase; letter-spacing: 0.05em;">
-                Element ${idx + 1}
-              </div>
-              <button data-remove-btn="${idx}" style="background: transparent; border: 1px solid rgba(0,0,0,0.1); color: #666666; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 500; transition: all 0.15s ease; letter-spacing: -0.01em;">
-                Remove
-              </button>
-            </div>
-            
-            <div style="font-size: 12px; color: #000000;">
-              <div style="margin-bottom: 6px;">
-                <span style="color: #666666; font-size: 11px; font-weight: 500; display: block; margin-bottom: 4px;">URL:</span>
-                <code style="background-color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; border: 1px solid rgba(0,0,0,0.06); font-weight: 500; word-break: break-all; display: block;">${this.escapeHtml(elementInfo.url)}</code>
-              </div>
-              <div style="margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-                <span style="color: #666666; font-size: 11px; font-weight: 500;">Tag:</span>
-                <code style="background-color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; border: 1px solid rgba(0,0,0,0.06); font-weight: 500;">${elementInfo.tag}</code>
-              </div>
-              ${elementInfo.id ? `
-                <div style="margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-                  <span style="color: #666666; font-size: 11px; font-weight: 500;">ID:</span>
-                  <code style="background-color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; border: 1px solid rgba(0,0,0,0.06); font-weight: 500;">${elementInfo.id}</code>
-                </div>
-              ` : ''}
-              ${elementInfo.classes.length > 0 ? `
-                <div style="margin-bottom: 6px;">
-                  <span style="color: #666666; font-size: 11px; font-weight: 500; display: block; margin-bottom: 4px;">Classes:</span>
-                  <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-                    ${elementInfo.classes.map(cls => `
-                      <code style="background-color: #ffffff; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; border: 1px solid rgba(0,0,0,0.06); font-weight: 500;">
-                        ${cls}
-                      </code>
-                    `).join('')}
-                  </div>
-                </div>
-              ` : ''}
-              ${elementInfo.selector ? `
-                <div style="margin-bottom: 6px;">
-                  <span style="color: #666666; font-size: 11px; font-weight: 500; display: block; margin-bottom: 4px;">Selector:</span>
-                  <code style="background-color: #ffffff; padding: 3px 8px; border-radius: 6px; font-size: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; border: 1px solid rgba(0,0,0,0.06); font-weight: 500; word-break: break-all; display: block;">${this.escapeHtml(elementInfo.selector)}</code>
-                </div>
-              ` : ''}
-              <div style="margin-top: 10px; padding: 10px; background-color: #ffffff; border-radius: 6px; border: 1px solid rgba(0,0,0,0.06);">
-                <span style="color: #666666; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">HTML</span>
-                <pre style="margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 10px; line-height: 1.5; color: #000000;">${this.escapeHtml(elementInfo.html)}</pre>
-              </div>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-
-      <div style="padding: 12px 20px; border-top: 1px solid rgba(0,0,0,0.06); flex-shrink: 0;">
-        <label for="prompt-textarea" style="display: block; margin-bottom: 8px; font-size: 12px; font-weight: 500; color: #000000; letter-spacing: -0.01em;">
-          Additional Context
-        </label>
-        <textarea id="prompt-textarea" data-prompt-textarea placeholder="Add notes or context..." style="width: 100%; min-height: 64px; padding: 10px 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; font-size: 13px; font-family: inherit; resize: vertical; box-sizing: border-box; transition: all 0.15s ease; background-color: #fafafa; color: #000000; outline: none;">${this.prompt}</textarea>
-      </div>
-
-      <div style="padding: 12px 20px 16px; border-top: 1px solid rgba(0,0,0,0.06); display: flex; gap: 8px; flex-shrink: 0;">
-        ${(!this.maxElements || this.selectedElements.length < this.maxElements) ? `
-          <button data-add-more-btn style="flex: 1; padding: 10px 16px; background-color: #fafafa; color: #000000; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.15s ease; letter-spacing: -0.01em;">
-            Add More
-          </button>
-        ` : ''}
-        <button data-copy-button style="flex: 2; padding: 10px 16px; background-color: #000000; color: #ffffff; border: none; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; transition: opacity 0.15s ease; letter-spacing: -0.01em;">
-          Copy to Clipboard
-        </button>
-      </div>
-    `;
+    this.boxElement.innerHTML = generateDialogHTML({
+      selectedElements: this.selectedElements,
+      prompt: this.prompt,
+      maxElements: this.maxElements,
+      isSelectionMode: this.isSelectionMode,
+      selectedColor: this.selectedColor,
+      className: this.className,
+    });
 
     this.attachEventListeners();
   }
@@ -621,14 +476,14 @@ class ElementSnap {
   handleDragStart = (e: MouseEvent): void => {
     // Don't start drag if clicking on buttons
     if ((e.target as HTMLElement).closest('button')) return;
-    
+
     this.isDragging = true;
     const rect = this.boxElement!.getBoundingClientRect();
     this.dragOffset = {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top
     };
-    
+
     document.addEventListener('mousemove', this.handleDragMove);
     document.addEventListener('mouseup', this.handleDragEnd);
     e.preventDefault();
@@ -636,21 +491,21 @@ class ElementSnap {
 
   handleDragMove = (e: MouseEvent): void => {
     if (!this.isDragging || !this.boxElement) return;
-    
+
     const newX = e.clientX - this.dragOffset.x;
     const newY = e.clientY - this.dragOffset.y;
-    
+
     // Constrain to window bounds
     const boxWidth = this.boxElement.offsetWidth;
     const boxHeight = this.boxElement.offsetHeight;
     const maxX = window.innerWidth - boxWidth;
     const maxY = window.innerHeight - boxHeight;
-    
+
     this.position = {
       x: Math.max(0, Math.min(newX, maxX)),
       y: Math.max(0, Math.min(newY, maxY))
     };
-    
+
     this.boxElement.style.left = `${this.position.x}px`;
     this.boxElement.style.top = `${this.position.y}px`;
   }
@@ -737,7 +592,11 @@ class ElementSnap {
     // Add More button
     const addMoreBtn = this.boxElement.querySelector('[data-add-more-btn]');
     if (addMoreBtn) {
-      addMoreBtn.addEventListener('click', () => this.startSelectionMode());
+      addMoreBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.resumeSelectionMode();
+      });
       addMoreBtn.addEventListener('mouseenter', (e) => {
         const target = e.target as HTMLElement;
         target.style.backgroundColor = '#000000';
@@ -748,6 +607,24 @@ class ElementSnap {
         const target = e.target as HTMLElement;
         target.style.backgroundColor = '#fafafa';
         target.style.color = '#000000';
+        target.style.borderColor = 'rgba(0,0,0,0.1)';
+      });
+    }
+
+    // Clear All button
+    const clearAllBtn = this.boxElement.querySelector('[data-clear-all-btn]');
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', () => this.clearSelection());
+      clearAllBtn.addEventListener('mouseenter', (e) => {
+        const target = e.target as HTMLElement;
+        target.style.backgroundColor = '#fee2e2';
+        target.style.color = '#ef4444';
+        target.style.borderColor = '#fca5a5';
+      });
+      clearAllBtn.addEventListener('mouseleave', (e) => {
+        const target = e.target as HTMLElement;
+        target.style.backgroundColor = '#fafafa';
+        target.style.color = '#ef4444';
         target.style.borderColor = 'rgba(0,0,0,0.1)';
       });
     }
@@ -765,16 +642,10 @@ class ElementSnap {
     }
   }
 
-  escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
-
   cleanup(): void {
     // Clean up drag listeners
     this.handleDragEnd();
-    
+
     if (this.boxElement) {
       this.boxElement.remove();
       this.boxElement = null;
@@ -794,3 +665,4 @@ class ElementSnap {
 
 // Export for different module systems
 export default ElementSnap;
+export type { ElementInfo, SelectionPromptOptions };
